@@ -1,4 +1,5 @@
 use clap::Parser;
+use colored::*;
 use std::fs::File;
 use std::io::BufRead;
 use std::path::Path;
@@ -47,8 +48,10 @@ fn grep_file(file_path: &Path, pattern: &str) -> usize {
     let mut count = 0;
     if let Ok(lines) = read_lines(file_path) {
         for line in lines.map_while(Result::ok) {
-            if line.contains(pattern) {
-                println!("{}: {}", file_path.to_string_lossy(), line);
+            if let Some(index) = line.find(pattern) {
+                let before = &line[..index];
+                let after = &line[index + pattern.len()..];
+                println!("{}{}{}", before, pattern.red().bold(), after);
                 count += 1;
             }
         }
