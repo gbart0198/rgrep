@@ -1,6 +1,8 @@
 use clap::Parser;
-use std::fs;
+use std::fs::File;
+use std::io::BufRead;
 use std::path::Path;
+use std::{fs, io};
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
@@ -18,26 +20,31 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     for entry in fs::read_dir(args.directory_name)? {
         let entry = entry?;
         let path = entry.path();
-        if path.is_file() && !grep_file(path.as_path(), &args.pattern) {
-            println!("Pattern not found in {}", path.to_str().unwrap());
+        if path.is_file() {
+            let _count = grep_file(path.as_path(), &args.pattern);
         }
     }
 
     Ok(())
 }
 
-fn grep_file(file_path: &Path, pattern: &str) -> bool {
-    let contents = std::fs::read_to_string(file_path);
-
-    if let Ok(contents) = contents
-        && let Some(found) = contents.find(pattern)
-    {
-        println!(
-            "Found match in file {} at index: {}",
-            file_path.to_str().unwrap(),
-            found
-        );
-        return true;
+fn grep_file(file_path: &Path, pattern: &str) -> usize {
+    let mut count = 0;
+    if let Ok(lines) = read_lines(file_path) {
+        for line in lines.map_while(Result::ok) {
+            if line.contains(pattern) {
+                println!("{}: {}", file_path.to_string_lossy(), line);
+                count += 1;
+            }
+        }
     }
-    false
+    count
+}
+
+fn read_lines<P>(path: P) -> io::Result<io::Lines<io::BufReader<File>>>
+where
+    P: AsRef<Path>,
+{
+    let file = File::open(path)?;
+    Ok(io::BufReader::new(file).lines())
 }
