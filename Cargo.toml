@@ -6,6 +6,3 @@ edition = "2024"
 [dependencies]
 clap = { version = "4.5.51", features = ["derive"] }
 colored = "3.0.0"
-
-[alias]
-build-base = "build --bin rgrep --release --out-dir ."
