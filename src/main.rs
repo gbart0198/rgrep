@@ -4,7 +4,7 @@ use std::fmt::Display;
 use std::fs::File;
 use std::io::BufRead;
 use std::path::Path;
-use std::{fs, io};
+use std::{fs, io, time};
 
 #[derive(Debug)]
 struct FileSearchResult {
@@ -53,35 +53,42 @@ struct Args {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = Args::parse();
-    let mut total_matches = Vec::new();
+    let total_matches = grep_single_thread(&args)?;
+    let time_start = time::Instant::now();
 
-    for entry in fs::read_dir(args.directory)? {
+    for found in &total_matches {
+        println!("{}", found);
+    }
+    let time_elapsed = time_start.elapsed().as_nanos();
+    println!("Time elapsed: {} ns", time_elapsed);
+
+    Ok(())
+}
+
+fn grep_single_thread(args: &Args) -> Result<Vec<FileSearchResult>, Box<dyn std::error::Error>> {
+    let mut total_matches = Vec::new();
+    for entry in fs::read_dir(&args.directory)? {
         let entry = entry?;
         let path = entry.path();
         if path.is_file() {
             let file_name = path.to_string_lossy();
             if args.file != "*" {
                 if file_name.contains(&args.file) {
-                    if let Some(results) = grep_file(&path, &args.pattern) {
+                    if let Some(results) = search_file(&path, &args.pattern) {
                         total_matches.push(results);
                     }
                 }
             } else {
-                if let Some(results) = grep_file(&path, &args.pattern) {
+                if let Some(results) = search_file(&path, &args.pattern) {
                     total_matches.push(results);
                 }
             }
         }
     }
-
-    for found in &total_matches {
-        println!("{}", found);
-    }
-
-    Ok(())
+    Ok(total_matches)
 }
 
-fn grep_file(file_path: &Path, pattern: &str) -> Option<FileSearchResult> {
+fn search_file(file_path: &Path, pattern: &str) -> Option<FileSearchResult> {
     let mut line_number = 0;
     let mut matches = Vec::new();
     if let Ok(lines) = read_lines(file_path) {
